@@ -31,7 +31,10 @@ The 197 are the 193 UN members plus Vatican City, Palestine, Kosovo and Taiwan, 
 - Spelling is forgiving about case, accents and punctuation. Common alternates count: *Ivory Coast*, *Czech Republic*, *USA*, *UK*, *Burma*, *Holland*, *East Timor*, *Swaziland*, *DRC*, *St Lucia*…
 - A name that is also the start of another open answer (*Niger* → *Nigeria*, *Dominica* → *Dominican Republic*) waits a moment so you can keep typing. Press ⏎ to lock it in right away.
 - Countries too small to see show as **circles**, which turn green as well.
-- **PAUSE** / **RESUME**. **GIVE UP** or running out of time shows everything you missed in **red**. **AGAIN** starts a new round.
+- **PAUSE** / **RESUME**. **GIVE UP** or running out of time shows everything you missed in **red**, so you learn them:
+  - the **MISSED ◂ ▸** bar walks through the misses A–Z, lighting each one up **white** on the map with its name (← → keys work too);
+  - **hover** any red or green country to see its name.
+  **AGAIN** starts a new round.
 - **▾** folds the widget to a one-line bar with your score and best; **▸** opens it again. Switching tabs pauses the current quiz, so each mode keeps its own round.
 - Best per mode (most found, then fastest) is kept in `~/Library/Application Support/STUDYTERM/atlas-best.json`.
 
@@ -72,7 +75,7 @@ This widget is one of fifteen that share the same retro-terminal look, the same 
 | ☠ | [**DOOM//TERM**](https://github.com/SlicingReaper/doom-widget) | DOOM shareware Episode 1 in a 2-column widget: WebAssembly engine, savegames kept |
 | ◍ | [**GLOBE//GUESS**](https://github.com/SlicingReaper/globe-widget) | Daily mystery country on a spinning globe: every guess glows hotter the closer it is |
 | ◍ | [**ATLAS//QUIZ**](https://github.com/SlicingReaper/atlas-quiz-widget) ← you are here | Sporcle-style map quiz: type a name, the country lights up green. World, continents, US states |
-| W | [**WORDLE//**](https://github.com/SlicingReaper/wordle-widget) | The daily five-letter word game: six tries, streaks, guess distribution, unlimited practice |
+| W | [**WORDLE//**](https://github.com/SlicingReaper/wordle-widget) | Wordle in EN · FR · ES · DE: daily word, a new word any time, streaks, guess distribution |
 | 🎛️ | [**WIDGET//CTL**](https://github.com/SlicingReaper/widgetctl) | Menu-bar app that arranges and themes all the widgets, plus a ⌃⌥⌘W show/hide hotkey |
 
 **Install all of them at once:** [`vibecoded` → install-all.command](https://github.com/SlicingReaper/vibecoded) · 🤖 Vibecoded with [Claude](https://claude.ai): I designed, directed and tested it, the AI wrote most of the code.

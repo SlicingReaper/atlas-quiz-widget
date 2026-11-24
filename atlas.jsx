@@ -7,7 +7,8 @@
 //   Pick a mode on the top bar → START (or just start typing). Every name you get right lights up green and the
 //   field clears itself, no Enter needed. Common alternates count (Ivory Coast, Czech Republic, USA, Burma…).
 //   A name that is also the start of another one (Niger → Nigeria, Dominica → Dominican Republic) waits a moment or
-//   takes ⏎. Small countries are circles. Out of time or GIVE UP → what you missed shows red. ▾ folds it to a bar.
+//   takes ⏎. Small countries are circles. Out of time or GIVE UP → what you missed shows red, and a MISSED ◂ ▸ bar walks
+//   you through them A–Z, lighting each one up white with its name. Hover any red or green country to see its name. ▾ folds it.
 //
 // Size: 472 × 314 = two widget columns. WIDGET//CTL default col 3 row 10 → fallback top 366, right 766.
 // Hidden while ~/Library/Application Support/STUDYTERM/hidden exists (⌃⌥⌘W toggles it).
@@ -151,7 +152,7 @@ let DATA = null, LOADING = false, LOAD_ERR = "";
 let MODE = "WORLD", COLLAPSED = false, DISPATCH = null, FR = 0;
 let BEST = {}, BEST_LOADED = false;
 const GAMES = {};
-let FLASH = null, PENDING = null, INPUT = null;
+let FLASH = null, PENDING = null, INPUT = null, HOVER = -1, REVIEW = 0;   // REVIEW = position in the missed list after a round
 let INDEX = {};   // mode → { key → [answer index] }
 
 const bump = () => { FR++; if (DISPATCH) DISPATCH({ type: "FRAME", f: FR }); };
@@ -201,14 +202,15 @@ const saveBest = () => {
 // ───────── game flow ─────────
 const start = (id) => { const g = game(id); if (g.over || g.running) return; g.start = Date.now(); g.running = true; bump(); };
 const pause = (id) => { const g = game(id); if (!g.running) return; g.acc = elapsed(g); g.running = false; bump(); };
-const reset = (id) => { GAMES[id] = null; PENDING = null; FLASH = null; if (INPUT) INPUT.value = ""; bump(); };
+const reset = (id) => { GAMES[id] = null; PENDING = null; FLASH = null; REVIEW = 0; HOVER = -1; if (INPUT) INPUT.value = ""; bump(); };
 const end = (id, reason) => {
   const g = game(id);
-  g.acc = elapsed(g); g.running = false; g.over = true; g.reason = reason; PENDING = null;
+  g.acc = elapsed(g); g.running = false; g.over = true; g.reason = reason; PENDING = null; REVIEW = 0;
   const n = g.found.length, b = BEST[id];
   if (n > 0 && (!b || n > b.n || (n === b.n && g.acc < b.ms))) { BEST[id] = { n, ms: g.acc, of: members(id).length }; saveBest(); }
   bump();
 };
+const missed = (id) => { const g = game(id); return members(id).filter((i) => !g.found.includes(i)).sort((a, b) => names(id)[a].n.localeCompare(names(id)[b].n)); };
 const accept = (i) => {
   const g = game(MODE);
   if (g.over || g.found.includes(i)) return;
@@ -271,26 +273,28 @@ const btn = (key, label, on, col) => (
 
 const mapView = () => {
   const g = game(MODE), mem = members(MODE), memSet = new Set(mem), found = new Set(g.found);
-  const fillOf = (i) => (found.has(i) ? GREEN : g.over && memSet.has(i) ? RED : memSet.has(i) ? W_RGBA(C, 0.13) : W_RGBA(DIM, 0.12));
+  const miss = g.over ? missed(MODE) : [], cur = miss.length ? miss[REVIEW % miss.length] : -1;
+  const fillOf = (i) => (i === cur ? T.text : i === HOVER ? (found.has(i) ? "#9dffbf" : g.over && memSet.has(i) ? "#ff9aa4" : W_RGBA(C, 0.35)) : found.has(i) ? GREEN : g.over && memSet.has(i) ? RED : memSet.has(i) ? W_RGBA(C, 0.13) : W_RGBA(DIM, 0.12));
   const strokeOf = (i) => (memSet.has(i) ? W_RGBA(C, 0.55) : W_RGBA(DIM, 0.3));
-  const glow = (i) => (found.has(i) && T.glow ? `drop-shadow(0 0 2px ${GREEN})` : "none");
+  const glow = (i) => (i === cur ? `drop-shadow(0 0 3px ${T.text})` : found.has(i) && T.glow ? `drop-shadow(0 0 2px ${GREEN})` : "none");
+  const hov = (i) => (g.over || found.has(i) ? { onMouseEnter: () => { HOVER = i; bump(); }, onMouseLeave: () => { if (HOVER === i) { HOVER = -1; bump(); } } } : {});
   let vb, paths = [], ctx = [], markers = {};
   if (MODE === "US") { vb = DATA.us.vb; paths = DATA.us.states.map((s) => s.d); markers = DATA.us.markers; }
   else { const v = DATA.views[MODE]; vb = v.vb; const set = DATA.sets[v.set]; paths = set.shapes; ctx = set.ctx; markers = set.markers; }
   const r = vb[2] * 0.0065;
-  const order = paths.map((_, i) => i).sort((a, b) => (memSet.has(a) ? 1 : 0) - (memSet.has(b) ? 1 : 0));
+  const order = paths.map((_, i) => i).sort((a, b) => (memSet.has(a) ? 1 : 0) - (memSet.has(b) ? 1 : 0) || (a === cur ? 1 : 0) - (b === cur ? 1 : 0));
   return (
     <svg viewBox={vb.join(" ")} width={MAP_W} height={MAP_H} preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
       {ctx.map((d, k) => <path key={"x" + k} d={d} fill={W_RGBA(DIM, 0.1)} stroke={W_RGBA(DIM, 0.25)} strokeWidth={0.5} vectorEffect="non-scaling-stroke" />)}
       {order.map((i) => paths[i] ? (
         <path key={"p" + i} d={paths[i]} fill={fillOf(i)} fillRule="evenodd" stroke={strokeOf(i)} strokeWidth={0.6}
-          vectorEffect="non-scaling-stroke" style={{ filter: glow(i), transition: "fill .25s" }} />
+          vectorEffect="non-scaling-stroke" style={{ filter: glow(i), transition: "fill .25s", cursor: g.over && memSet.has(i) ? "help" : "default" }} {...hov(i)} />
       ) : null)}
       {Object.keys(markers).map((k) => {
         const i = +k; if (!memSet.has(i)) return null;
-        const [x, y] = markers[k], on = found.has(i), miss = g.over && !on;
-        return <circle key={"m" + k} cx={x} cy={y} r={r} fill={on ? GREEN : miss ? RED : "none"} fillOpacity={on || miss ? 0.9 : 0}
-          stroke={on ? GREEN : miss ? RED : W_RGBA(C, 0.7)} strokeWidth={0.8} vectorEffect="non-scaling-stroke" />;
+        const [x, y] = markers[k], on = found.has(i), ms = g.over && !on, now = i === cur;
+        return <circle key={"m" + k} cx={x} cy={y} r={now ? r * 1.8 : r} fill={now ? T.text : on ? GREEN : ms ? RED : "none"} fillOpacity={on || ms || now ? 0.9 : 0}
+          stroke={now ? T.text : on ? GREEN : ms ? RED : W_RGBA(C, 0.7)} strokeWidth={0.8} vectorEffect="non-scaling-stroke" {...hov(i)} />;
       })}
     </svg>
   );
@@ -367,8 +371,14 @@ export const render = ({ output }, dispatch) => {
           {LOAD_ERR || "LOADING MAP…"}
         </div>
       )}
+      {DATA && HOVER >= 0 && (
+        <div style={{ position: "absolute", left: 6, top: 5, fontSize: 9, letterSpacing: 1, padding: "2px 6px", pointerEvents: "none",
+          background: `rgba(${T.bg},0.9)`, color: game(MODE).found.includes(HOVER) ? GREEN : RED, border: `1px solid ${W_RGBA(C, 0.3)}` }}>
+          {names(MODE)[HOVER] ? names(MODE)[HOVER].n : ""}
+        </div>
+      )}
       {g.over && (
-        <div style={{ position: "absolute", left: 8, bottom: 6, fontSize: 8.5, letterSpacing: 1.2, padding: "2px 6px", background: `rgba(${T.bg},0.85)`,
+        <div style={{ position: "absolute", right: 8, bottom: 6, fontSize: 8.5, letterSpacing: 1.2, padding: "2px 6px", background: `rgba(${T.bg},0.85)`,
           color: g.reason === "ALL" ? GREEN : AMBER, border: `1px solid ${g.reason === "ALL" ? GREEN : AMBER}55` }}>
           {g.reason === "ALL" ? `ALL ${total} IN ${mmss(g.acc)} ■` : `${g.reason === "TIME" ? "TIME" : "GAVE UP"} · ${g.found.length}/${total} · ${total - g.found.length} IN RED`}
         </div>
@@ -377,6 +387,22 @@ export const render = ({ output }, dispatch) => {
   );
 
   const pendingHint = PENDING ? "⏎ TO LOCK IN" : "";
+  const miss = g.over ? missed(MODE) : [];
+  const step = (d) => { if (miss.length) { REVIEW = (REVIEW + d + miss.length) % miss.length; bump(); } };
+  const review = g.over && miss.length ? (
+    <div style={{ position: "relative", marginTop: 7, display: "flex", alignItems: "center", gap: 6, height: 22, padding: "0 8px", flexShrink: 0,
+      border: `1px solid ${RED}55`, background: W_INSET(), fontSize: 9, letterSpacing: 1 }}
+      tabIndex={0} onKeyDown={(e) => { if (e.key === "ArrowRight" || e.key === "ArrowDown") step(1); if (e.key === "ArrowLeft" || e.key === "ArrowUp") step(-1); }}>
+      <span style={{ color: RED, fontSize: 8 }}>MISSED</span>
+      <span className="aq-btn" onClick={() => step(-1)} style={{ cursor: "pointer", color: C, padding: "0 4px" }}>◂</span>
+      <span style={{ flex: 1, textAlign: "center", color: T.text, textShadow: T.glow ? `0 0 6px ${T.text}88` : "none", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        {names(MODE)[miss[REVIEW % miss.length]].n.toUpperCase()}
+      </span>
+      <span style={{ color: DIM, fontSize: 8 }}>{(REVIEW % miss.length) + 1}/{miss.length}</span>
+      <span className="aq-btn" onClick={() => step(1)} style={{ cursor: "pointer", color: C, padding: "0 4px" }}>▸</span>
+      {btn("a", "AGAIN", () => reset(MODE), C)}
+    </div>
+  ) : null;
   const bottom = (
     <div style={{ position: "relative", marginTop: 7, display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
       <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 6, height: 22, padding: "0 8px", border: `1px solid ${C}44`, background: W_INSET() }}>
@@ -395,5 +421,5 @@ export const render = ({ output }, dispatch) => {
     </div>
   );
 
-  return shell(314, [<div key="h">{header}</div>, <div key="s">{status}</div>, <div key="m">{map}</div>, <div key="b">{bottom}</div>]);
+  return shell(314, [<div key="h">{header}</div>, <div key="s">{status}</div>, <div key="m">{map}</div>, <div key="b">{review || bottom}</div>]);
 };
